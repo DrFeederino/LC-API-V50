@@ -10,7 +10,7 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Internal
     [HarmonyPatch(typeof(GameNetworkManager), nameof(GameNetworkManager.Start))]
     class GameNetworkManagerStartPatch
     {
-        private static readonly string BUNDLE_PATH = Path.Combine(Plugin.Instance.Info.Location.Substring(0, Plugin.Instance.Info.Location.LastIndexOf(Path.DirectorySeparatorChar)), "Bundles", "networking");
+        private static readonly string BUNDLE_PATH = Path.Combine(Plugin.Instance.Info.Location.Substring(0, Plugin.Instance.Info.Location.LastIndexOf(Path.DirectorySeparatorChar)), "", "networking");
 
         private const string PLAYER_NETWORKING_ASSET_LOCATION = "assets/lc_api/playernetworkingprefab.prefab";
 
