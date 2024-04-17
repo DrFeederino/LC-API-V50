@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 N/A
+## Version [3.4.8]
+- Changed path to networking bundle file.
+## Version [3.4.7]
+- Updated package name to avoid any possible name-collisions.
+
+## Version [3.4.6]
+- Built against V50 release of the game and fixes MissingMethodExceptions when displaying tips.
 
 ## Version [3.4.5]
 - Fixed an issue where bodies would not ragdoll after death when using vanilla support.
