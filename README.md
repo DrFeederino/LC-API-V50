@@ -7,7 +7,7 @@
 The definitive Lethal Company modding API. Includes some very useful features to make modding life easier.
 
 # Note
-This is a repackage of the original LC_API built with version 50 of the game.
+This is a repackage of the original LC_API built with version 55 of the game.
 
 # For Developers
 If you want to use the API in your plugin, add the LC_API.dll as a project reference!
