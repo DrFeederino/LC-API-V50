@@ -120,7 +120,7 @@ namespace LC_API.GameInterfaceAPI.Features
                 {
                     StartOfRound.Instance.mapScreen.radarTargets[index].name = value;
 
-                    if (StartOfRound.Instance.mapScreen.targetTransformIndex == index) 
+                    if (StartOfRound.Instance.mapScreen.targetTransformIndex == index)
                         StartOfRound.Instance.mapScreenPlayerName.text = "MONITORING: " + value;
                 }
 
@@ -418,7 +418,7 @@ namespace LC_API.GameInterfaceAPI.Features
         /// <param name="causeOfDeath">The cause of death to show on the end screen.</param>
         /// <param name="deathAnimation">Which death animation to use.</param>
         /// <exception cref="NoAuthorityException">Thrown when attempting to kill a <see cref="Player"/> that isn't the local <see cref="Player"/>'s, if not the host.</exception>
-        public void Kill(Vector3 bodyVelocity = default, bool spawnBody = true, CauseOfDeath causeOfDeath = CauseOfDeath.Unknown, int deathAnimation = 0)
+        public void Kill(Vector3 bodyVelocity = default, bool spawnBody = true, CauseOfDeath causeOfDeath = CauseOfDeath.Unknown, int deathAnimation = 0, Vector3 positionOffset = default(Vector3))
         {
             if (IsLocalPlayer)
             {
@@ -431,7 +431,7 @@ namespace LC_API.GameInterfaceAPI.Features
                     throw new NoAuthorityException("Tried to kill player from other client.");
                 }
 
-                PlayerController.KillPlayerClientRpc((int)ClientId, spawnBody, bodyVelocity, (int)causeOfDeath, deathAnimation);
+                PlayerController.KillPlayerClientRpc((int)ClientId, spawnBody, bodyVelocity, (int)causeOfDeath, deathAnimation, positionOffset);
             }
         }
 
@@ -601,7 +601,7 @@ namespace LC_API.GameInterfaceAPI.Features
         #region Unity related things
         private void Start()
         {
-            if (!(NetworkManager.Singleton.IsServer || NetworkManager.Singleton.IsHost)) 
+            if (!(NetworkManager.Singleton.IsServer || NetworkManager.Singleton.IsHost))
             {
                 PlayerController = StartOfRound.Instance.allPlayerScripts.FirstOrDefault(c => c.actualClientId == NetworkClientId.Value);
             }
@@ -836,7 +836,7 @@ namespace LC_API.GameInterfaceAPI.Features
 
         [ServerRpc(RequireOwnership = false)]
         private void CallDroppingItemOnOtherClientsServerRpc(ulong itemNetworkId, bool placeObject, Vector3 targetPosition,
-            int floorYRotation, bool hasParent, ulong parentObjectToId, bool matchRotationOfParent, bool droppedInShip, 
+            int floorYRotation, bool hasParent, ulong parentObjectToId, bool matchRotationOfParent, bool droppedInShip,
             ServerRpcParams serverRpcParams = default)
         {
             if (serverRpcParams.Receive.SenderClientId != ClientId) return;

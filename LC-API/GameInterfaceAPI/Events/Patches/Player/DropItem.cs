@@ -13,7 +13,7 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
     [HarmonyPatch(typeof(PlayerControllerB), nameof(PlayerControllerB.DiscardHeldObject))]
     internal class DroppingItem
     {
-        internal static DroppingItemEventArgs CallEvent(PlayerControllerB playerController, bool placeObject, Vector3 targetPosition, 
+        internal static DroppingItemEventArgs CallEvent(PlayerControllerB playerController, bool placeObject, Vector3 targetPosition,
             int floorYRotation, NetworkObject parentObjectTo, bool matchRotationOfParent, bool droppedInShip)
         {
             if (Plugin.configVanillaSupport.Value) return null;
@@ -25,7 +25,7 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
             DroppingItemEventArgs ev = new DroppingItemEventArgs(player, item, placeObject, targetPosition, floorYRotation, parentObjectTo, matchRotationOfParent, droppedInShip);
 
             Handlers.Player.OnDroppingItem(ev);
-
+            
             player.CallDroppingItemOnOtherClients(item, placeObject, targetPosition, floorYRotation, parentObjectTo, matchRotationOfParent, droppedInShip);
 
             return ev;
@@ -43,6 +43,7 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
 
             LocalBuilder isInShipLocal = generator.DeclareLocal(typeof(bool));
 
+            // Dr Feederino: this is the first "hook" of CallEvent() call into the PlayerControllerB.DiscardHeldObject(). It is done at the first Stloc_0, basically at the very beginning of the function before anything happens so it "can" control the flow of the original code.
             {
                 const int offset = 1;
 
@@ -56,14 +57,14 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
                 {
                     // DroppingItemEventArgs ev = DroppingItem.CallEvent(PlayerControllerB, bool, Vector3, 
                     //  int, NetworkObject, bool, bool)
-                    new CodeInstruction(OpCodes.Ldarg_0).MoveLabelsFrom(newInstructions[index]),
-                    new CodeInstruction(OpCodes.Ldarg_1),
-                    new CodeInstruction(OpCodes.Ldarg_3),
-                    new CodeInstruction(OpCodes.Ldloc, 4),
-                    new CodeInstruction(OpCodes.Ldarg_2),
-                    new CodeInstruction(OpCodes.Ldarg, 4),
-                    new CodeInstruction(OpCodes.Ldarg_0),
-                    new CodeInstruction(OpCodes.Ldfld, AccessTools.Field(typeof(PlayerControllerB), nameof(PlayerControllerB.isInHangarShipRoom))),
+                    new CodeInstruction(OpCodes.Ldarg_0).MoveLabelsFrom(newInstructions[index]), // "this"
+                    new CodeInstruction(OpCodes.Ldarg_1), // PlayerControllerB
+                    new CodeInstruction(OpCodes.Ldarg_3), // bool
+                    new CodeInstruction(OpCodes.Ldloc, 4), // vector3
+                    new CodeInstruction(OpCodes.Ldarg_2), // int
+                    new CodeInstruction(OpCodes.Ldarg, 4), // networkobject
+                    new CodeInstruction(OpCodes.Ldarg_0), // bool
+                    new CodeInstruction(OpCodes.Ldfld, AccessTools.Field(typeof(PlayerControllerB), nameof(PlayerControllerB.isInHangarShipRoom))), // bool
                     new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(DroppingItem), nameof(DroppingItem.CallEvent))),
 
                     // if (ev is null) -> base game code
@@ -129,15 +130,33 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
 
                 newInstructions[index + inst.Length].labels.Add(skipLabel);
 
-                newInstructions.RemoveRange(index + inst.Length + 1, 4);
+                // Dr Feederino: find the index of the first call of SetObjectAsNoLongerHeld() where the arguements would be declared and passed.
+                // The body of original method can vary and change, so this is very probable to break from update to update.
+                int firstMethodCallIndex = newInstructions.FindIndex(i => i.Calls(AccessTools.Method(typeof(PlayerControllerB), nameof(PlayerControllerB.SetObjectAsNoLongerHeld))));
 
-                newInstructions.InsertRange(index + inst.Length + 1, new CodeInstruction[]
+                // Dr Feederino notes:
+                // Idea is to remove the following stuff before SetObjectAsNoLongerHeld().
+                // These 4 lines declare that need to load from this.isInElevator and this.isInHangarShipRoom (ldarg.0 = "this" aka current instance of object), and pass them as first two arguements to GameNetcodeStuff.PlayerControllerB::SetObjectAsNoLongerHeld(System.Boolean,System.Boolean,UnityEngine.Vector3,GrabbableObject,System.Int32)
+                // Huge note: the first ldarg.0 is REQUIRED because this method is called against INSTANCE of the object, hence, it is required.
+                // IL_0531: ldarg.0
+                // IL_0532: ldfld System.Boolean GameNetcodeStuff.PlayerControllerB::isInElevator
+                // IL_0537: ldarg.0
+                // IL_0538: ldfld System.Boolean GameNetcodeStuff.PlayerControllerB::isInHangarShipRoom
+
+                // This is to replace them (isInElevator and isInHangarShipRoom) with declared locally IsInShip bool variable aka droppedInShip in DroppingItemEventArgs.
+
+                // Subtraction of 8 is required to go the first "IL_0531", 4 is to remove lines explained above.
+                newInstructions.RemoveRange(firstMethodCallIndex - 8, 4);
+
+                // Now it is required to insert two lines that expose locally declared IsInShip bool for first two arguements.
+                newInstructions.InsertRange(firstMethodCallIndex - 8, new CodeInstruction[]
                 {
                     new CodeInstruction(OpCodes.Ldloc, isInShipLocal.LocalIndex),
                     new CodeInstruction(OpCodes.Ldloc, isInShipLocal.LocalIndex)
                 });
             }
 
+            // Dr Feederino: this is the second "hook" of CallEvent() call into the PlayerControllerB.DiscardHeldObject(). It is done at the last Stloc_S, before the second call SetObjectAsNoLongerHeld()
             {
                 const int offset = 1;
 
@@ -151,13 +170,13 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
                 {
                     // DroppingItemEventArgs ev = DroppingItem.CallEvent(PlayerControllerB, bool, Vector3, 
                     //  int, NetworkObject, bool, bool)
-                    new CodeInstruction(OpCodes.Ldarg_0).MoveLabelsFrom(newInstructions[index]),
-                    new CodeInstruction(OpCodes.Ldarg_1),
-                    new CodeInstruction(OpCodes.Ldloc_1),
-                    new CodeInstruction(OpCodes.Ldloc_0),
-                    new CodeInstruction(OpCodes.Ldarg_2),
-                    new CodeInstruction(OpCodes.Ldarg, 4),
-                    new CodeInstruction(OpCodes.Ldloc_2),
+                    new CodeInstruction(OpCodes.Ldarg_0).MoveLabelsFrom(newInstructions[index]),  // playerController (this)
+                    new CodeInstruction(OpCodes.Ldarg_1),  // placeObject 
+                    new CodeInstruction(OpCodes.Ldloc_S, 5),  // placePosition (targetPosition V_5)
+                    new CodeInstruction(OpCodes.Ldloc_S, 4),  // floorYRotation (V_4)
+                    new CodeInstruction(OpCodes.Ldarg_2), // parentObjectTo
+                    new CodeInstruction(OpCodes.Ldarg, 4), // matchRotationOfParent 
+                    new CodeInstruction(OpCodes.Ldloc_S, 6),// droppedInShip (V_6)
                     new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(DroppingItem), nameof(DroppingItem.CallEvent))),
 
                     // if (ev is null) -> base game code
@@ -177,11 +196,11 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
 
                     // targetFloorPosition = ev.TargetPosition
                     new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.TargetPosition))),
-                    new CodeInstruction(OpCodes.Stloc_1),
+                    new CodeInstruction(OpCodes.Stloc_S, 5),
 
                     // floorYRot = ev.FloorYRotation
                     new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.FloorYRotation))),
-                    new CodeInstruction(OpCodes.Stloc_0),
+                    new CodeInstruction(OpCodes.Stloc_S, 4),
 
                     // parentObjectTo = ev.ParentObjectTo
                     new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.ParentObjectTo))),
@@ -202,8 +221,8 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
                 {
                     new CodeInstruction(OpCodes.Br, skipLabel),
                     new CodeInstruction(OpCodes.Pop).WithLabels(nullLabel),
-                    new CodeInstruction(OpCodes.Ldloc_2),
-                    new CodeInstruction(OpCodes.Stloc, isInShipLocal.LocalIndex), 
+                    new CodeInstruction(OpCodes.Ldloc_S, 6),
+                    new CodeInstruction(OpCodes.Stloc, isInShipLocal.LocalIndex),
                 });
 
                 inst = inst.AddRangeToArray(animatorStuff);
@@ -222,6 +241,7 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
 
                 newInstructions[index + inst.Length].labels.Add(skipLabel);
 
+                // Dr Feederino: shenanigans with finding index of second call to SetObjectAsNoLongerHeld() is not needed as the index of last opcode_s correctly points right before the call and the code below is valid.
                 newInstructions.RemoveRange(index + inst.Length + 1, 3);
 
                 newInstructions.InsertRange(index + inst.Length + 1, new CodeInstruction[]
