@@ -34,7 +34,7 @@
   <PropertyGroup>
     <OutputPath>bin</OutputPath>
     <LETHAL_COMPANY_DIR>D:\SteamLibrary\steamapps\common\Lethal Company</LETHAL_COMPANY_DIR>
-    <LC_API_DIR>%APPDATA%\r2modmanPlus-local\LethalCompany\profiles\Default\BepInEx\plugins\DrFeederino-LC_API_V50</LC_API_DIR>
+    <LC_API_DIR>%APPDATA%\r2modmanPlus-local\LethalCompany\profiles\Default\BepInEx\plugins\DrFeederino-LC_API_V50\</LC_API_DIR>
   </PropertyGroup>
 
   <!-- prevent referenced assemblies from being copied to the output folder -->
