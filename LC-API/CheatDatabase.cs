@@ -45,7 +45,7 @@ namespace LC_API
         internal static void ReceivedModListHandler(ulong senderId, List<string> mods)
         {
             Player player = Player.Get(senderId);
-            string data = $"{player.Username} responded with these mods:\n{string.Join("\n", mods)}";
+            string data = $"{player?.Username ?? "unidentified player"} responded with these mods:\n{string.Join("\n", mods)}";
             Player.LocalPlayer.QueueTip("Mod List:", data);
             Plugin.Log.LogWarning(data);
         }
