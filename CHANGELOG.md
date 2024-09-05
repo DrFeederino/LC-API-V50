@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 N/A
 
+## Version [3.4.11]
+- Built for v64 update.
+
 ## Version [3.4.10]
 - Built for v60 update.
 

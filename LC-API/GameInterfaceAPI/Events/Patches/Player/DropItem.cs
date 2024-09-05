@@ -25,7 +25,7 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
             DroppingItemEventArgs ev = new DroppingItemEventArgs(player, item, placeObject, targetPosition, floorYRotation, parentObjectTo, matchRotationOfParent, droppedInShip);
 
             Handlers.Player.OnDroppingItem(ev);
-            
+
             player.CallDroppingItemOnOtherClients(item, placeObject, targetPosition, floorYRotation, parentObjectTo, matchRotationOfParent, droppedInShip);
 
             return ev;
@@ -35,16 +35,19 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
         {
             List<CodeInstruction> newInstructions = new List<CodeInstruction>(instructions);
 
-            int animIndex = newInstructions.FindIndex(i => i.opcode == OpCodes.Ldarg_1);
+            // original function was changed to have "!base.IsOwner" stuff with return, so that should be first, otherwise the function will call itself => infinite recursive.
+            int firstRetun = newInstructions.FindIndex(i => i.opcode == OpCodes.Ret) + 1;
+            int animIndex = newInstructions.FindIndex(i => i.opcode == OpCodes.Ldarg_1) - firstRetun;
 
-            CodeInstruction[] animatorStuff = newInstructions.GetRange(0, animIndex).ToArray();
+            CodeInstruction[] animatorStuff = newInstructions.GetRange(firstRetun, animIndex).ToArray();
 
-            newInstructions.RemoveRange(0, animIndex);
+            newInstructions.RemoveRange(firstRetun, animIndex);
 
             LocalBuilder isInShipLocal = generator.DeclareLocal(typeof(bool));
 
             // Dr Feederino: this is the first "hook" of CallEvent() call into the PlayerControllerB.DiscardHeldObject(). It is done at the first Stloc_0, basically at the very beginning of the function before anything happens so it "can" control the flow of the original code.
-            // Dr Feederino: V60 has another update of DiscardHelObject
+            // Dr Feederino: V60 has another update of DiscardHeldObject
+            // Dr Feederino: V64 yet another update in locals of DiscardHeldObject
             {
                 const int offset = 1;
 
@@ -61,7 +64,7 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
                     new CodeInstruction(OpCodes.Ldarg_0).MoveLabelsFrom(newInstructions[index]), // "this"
                     new CodeInstruction(OpCodes.Ldarg_1), // PlayerControllerB
                     new CodeInstruction(OpCodes.Ldarg_3), // bool
-                    new CodeInstruction(OpCodes.Ldloc, 6), // vector3
+                    new CodeInstruction(OpCodes.Ldloc, 4), // vector3
                     new CodeInstruction(OpCodes.Ldarg_2), // int
                     new CodeInstruction(OpCodes.Ldarg, 4), // networkobject
                     new CodeInstruction(OpCodes.Ldarg_0), // bool
@@ -89,7 +92,7 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
 
                     // floorYRot2 = ev.FloorYRotation
                     new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.FloorYRotation))),
-                    new CodeInstruction(OpCodes.Stloc, 6),
+                    new CodeInstruction(OpCodes.Stloc, 2),
 
                     // parentObjectTo = ev.ParentObjectTo
                     new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.ParentObjectTo))),
@@ -173,11 +176,11 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
                     //  int, NetworkObject, bool, bool)
                     new CodeInstruction(OpCodes.Ldarg_0).MoveLabelsFrom(newInstructions[index]),  // playerController (this)
                     new CodeInstruction(OpCodes.Ldarg_1),  // placeObject 
-                    new CodeInstruction(OpCodes.Ldloc_S, 7),  // placePosition (targetPosition V_5)
-                    new CodeInstruction(OpCodes.Ldloc_S, 6),  // floorYRotation (V_4)
+                    new CodeInstruction(OpCodes.Ldloc_S, 3),  // placePosition (targetPosition V_5)
+                    new CodeInstruction(OpCodes.Ldloc_S, 2),  // floorYRotation (V_4)
                     new CodeInstruction(OpCodes.Ldarg_2), // parentObjectTo
                     new CodeInstruction(OpCodes.Ldarg, 4), // matchRotationOfParent 
-                    new CodeInstruction(OpCodes.Ldloc_S, 8),// droppedInShip (V_6)
+                    new CodeInstruction(OpCodes.Ldloc_S, 4),// droppedInShip (V_6)
                     new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(DroppingItem), nameof(DroppingItem.CallEvent))),
 
                     // if (ev is null) -> base game code
@@ -197,11 +200,11 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
 
                     // targetFloorPosition = ev.TargetPosition
                     new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.TargetPosition))),
-                    new CodeInstruction(OpCodes.Stloc_S, 7),
+                    new CodeInstruction(OpCodes.Stloc_S, 3),
 
                     // floorYRot = ev.FloorYRotation
                     new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.FloorYRotation))),
-                    new CodeInstruction(OpCodes.Stloc_S, 6),
+                    new CodeInstruction(OpCodes.Stloc_S, 2),
 
                     // parentObjectTo = ev.ParentObjectTo
                     new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.ParentObjectTo))),
@@ -222,7 +225,7 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
                 {
                     new CodeInstruction(OpCodes.Br, skipLabel),
                     new CodeInstruction(OpCodes.Pop).WithLabels(nullLabel),
-                    new CodeInstruction(OpCodes.Ldloc_S, 8),
+                    new CodeInstruction(OpCodes.Ldloc_S, 4),
                     new CodeInstruction(OpCodes.Stloc, isInShipLocal.LocalIndex),
                 });
 
