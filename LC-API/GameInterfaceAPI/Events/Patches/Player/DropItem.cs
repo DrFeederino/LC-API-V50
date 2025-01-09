@@ -1,16 +1,14 @@
 ﻿using GameNetcodeStuff;
 using HarmonyLib;
 using LC_API.GameInterfaceAPI.Events.EventArgs.Player;
-using System;
 using System.Collections.Generic;
 using System.Reflection.Emit;
-using System.Text;
 using Unity.Netcode;
 using UnityEngine;
 
 namespace LC_API.GameInterfaceAPI.Events.Patches.Player
 {
-    [HarmonyPatch(typeof(PlayerControllerB), nameof(PlayerControllerB.DiscardHeldObject))]
+    //[HarmonyPatch(typeof(PlayerControllerB), nameof(PlayerControllerB.DiscardHeldObject))]
     internal class DroppingItem
     {
         internal static DroppingItemEventArgs CallEvent(PlayerControllerB playerController, bool placeObject, Vector3 targetPosition,
@@ -48,6 +46,7 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
             // Dr Feederino: this is the first "hook" of CallEvent() call into the PlayerControllerB.DiscardHeldObject(). It is done at the first Stloc_0, basically at the very beginning of the function before anything happens so it "can" control the flow of the original code.
             // Dr Feederino: V60 has another update of DiscardHeldObject
             // Dr Feederino: V64 yet another update in locals of DiscardHeldObject
+            // Dr Feederino: V69 HotFix for Cargo cruiser. Commented the whole bytecode shenanigans because it collides with Cargo Cruiser's collision box for dropping off items.
             {
                 const int offset = 1;
 

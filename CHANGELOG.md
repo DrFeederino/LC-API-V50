@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 N/A
 
+## Version [3.4.12]
+- Built for v69;
+- Fix for the issue when collisions of some game objects were ignored.
+
 ## Version [3.4.11]
 - Built for v64 update.
 

@@ -14,7 +14,7 @@
     </RestoreAdditionalProjectSources>
     <RootNamespace>LC_API</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
-    <Version>3.4.9</Version>
+    <Version>3.4.12</Version>
   </PropertyGroup>
   
   <!-- NuGet package metadata -->
@@ -112,13 +112,13 @@
   <!--Stuff for convience -->
   <!--Auto-patch netcode-->
   <Target Name="NetcodePatch" AfterTargets="PostBuildEvent">
-    <Exec Command="netcode-patch -nv 1.5.2 &quot;$(TargetPath)&quot; @(ReferencePathWithRefAssemblies->'&quot;%(Identity)&quot;', ' ')"/>
+    <Exec Command="netcode-patch -nv 1.5.2 &quot;$(TargetPath)&quot; @(ReferencePathWithRefAssemblies->'&quot;%(Identity)&quot;', ' ')" />
   </Target>
 
   <!--Automatically copy dll and pdb to default dir-->
   <Target Name="Copy to profile" AfterTargets="PostBuildEvent">
-    <Exec Command="copy /Y $(TargetDir)$(AssemblyName).dll $(LC_API_DIR)\$(AssemblyName).dll"/>
-    <Exec Command="copy /Y $(TargetDir)$(AssemblyName).pdb $(LC_API_DIR)\$(AssemblyName).pdb"/>
+    <Exec Command="copy /Y $(TargetDir)$(AssemblyName).dll $(LC_API_DIR)\$(AssemblyName).dll" />
+    <Exec Command="copy /Y $(TargetDir)$(AssemblyName).pdb $(LC_API_DIR)\$(AssemblyName).pdb" />
   </Target>
   
   <Target Name="PackThunderstore" AfterTargets="NetcodeWeave" Condition="$(PACK_THUNDERSTORE) == 'true' and $(TargetFramework) == 'netstandard2.1'">
