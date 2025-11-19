@@ -56,7 +56,7 @@ namespace LC_API
             Log = Logger;
             // Plugin startup logic
             Logger.LogWarning("\n.____    _________           _____  __________ .___  \r\n|    |   \\_   ___ \\         /  _  \\ \\______   \\|   | \r\n|    |   /    \\  \\/        /  /_\\  \\ |     ___/|   | \r\n|    |___\\     \\____      /    |    \\|    |    |   | \r\n|_______ \\\\______  /______\\____|__  /|____|    |___| \r\n        \\/       \\//_____/        \\/                 \r\n                                                     ");
-            Logger.LogInfo($"LC_API Starting up..");
+            Logger.LogInfo($"LC_API Starting up.");
             if (configOverrideModServer.Value)
             {
                 ModdedServer.SetServerModdedOnly();

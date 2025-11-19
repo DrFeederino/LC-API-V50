@@ -14,7 +14,7 @@
     </RestoreAdditionalProjectSources>
     <RootNamespace>LC_API</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
-    <Version>3.4.12</Version>
+    <Version>3.4.13</Version>
   </PropertyGroup>
   
   <!-- NuGet package metadata -->
@@ -53,7 +53,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="UnityEngine.Modules" Version="2022.3.9" IncludeAssets="compile" PrivateAssets="all" />
-    <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.2" PrivateAssets="all" />
+    <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.3" PrivateAssets="all" />
   </ItemGroup>
   
   <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
@@ -112,13 +112,25 @@
   <!--Stuff for convience -->
   <!--Auto-patch netcode-->
   <Target Name="NetcodePatch" AfterTargets="PostBuildEvent">
+    <Exec Command="echo Applying Netcode Patch to $(TargetPath)" />
     <Exec Command="netcode-patch -nv 1.5.2 &quot;$(TargetPath)&quot; @(ReferencePathWithRefAssemblies->'&quot;%(Identity)&quot;', ' ')" />
   </Target>
 
   <!--Automatically copy dll and pdb to default dir-->
   <Target Name="Copy to profile" AfterTargets="PostBuildEvent">
+    <Exec Command="echo Copying $(TargetDir)$(AssemblyName).dll to $(LC_API_DIR)" />
     <Exec Command="copy /Y $(TargetDir)$(AssemblyName).dll $(LC_API_DIR)\$(AssemblyName).dll" />
     <Exec Command="copy /Y $(TargetDir)$(AssemblyName).pdb $(LC_API_DIR)\$(AssemblyName).pdb" />
+    <!-- Copy files from repository root -->
+    <Exec Command="copy /Y $(SolutionDir)README.md $(LC_API_DIR)\README.md" />
+    <Exec Command="copy /Y $(SolutionDir)CHANGELOG.md $(LC_API_DIR)\CHANGELOG.md" />
+    <Exec Command="copy /Y $(SolutionDir)LICENSE $(LC_API_DIR)\LICENSE" />
+
+    <!-- Copy files from assets folder -->
+    <Exec Command="copy /Y $(SolutionDir)assets\icons\icon.png $(LC_API_DIR)\icon.png" />
+    <Exec Command="copy /Y $(SolutionDir)assets\manifest.json $(LC_API_DIR)\manifest.json" />
+    <Exec Command="copy /Y $(SolutionDir)assets\bundles\networking $(LC_API_DIR)\networking" />
+
   </Target>
   
   <Target Name="PackThunderstore" AfterTargets="NetcodeWeave" Condition="$(PACK_THUNDERSTORE) == 'true' and $(TargetFramework) == 'netstandard2.1'">

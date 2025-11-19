@@ -35,8 +35,8 @@ namespace LC_API
 
         public static void OtherPlayerCheatDetector()
         {
-            Plugin.Log.LogWarning("Asking all other players for their mod list..");
-            Player.LocalPlayer.QueueTip("Mod List:", "Asking all other players for installed mods..");
+            Plugin.Log.LogWarning("Asking all other players for their mod list.");
+            Player.LocalPlayer.QueueTip("Mod List:", $"Asking all other players for installed mods, the game version is {Comp.LC_APIManager.MenuManager?.versionNumberText?.GetParsedText() ?? "unknown"}.");
             Player.LocalPlayer.QueueTip("Mod List:", "Check the logs for more detailed results.\n<size=13>(Note that if someone doesnt show up on the list, they may not have LC_API installed)</size>");
             Network.Broadcast(SIG_REQ_GUID);
         }

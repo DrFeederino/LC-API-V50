@@ -3,15 +3,18 @@ using HarmonyLib;
 using LC_API.GameInterfaceAPI.Events.EventArgs.Player;
 using System.Collections.Generic;
 using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 using Unity.Netcode;
 using UnityEngine;
 
 namespace LC_API.GameInterfaceAPI.Events.Patches.Player
 {
-    //[HarmonyPatch(typeof(PlayerControllerB), nameof(PlayerControllerB.DiscardHeldObject))]
+
+    [HarmonyPatch(typeof(PlayerControllerB), nameof(PlayerControllerB.DiscardHeldObject))]
     internal class DroppingItem
     {
-        internal static DroppingItemEventArgs CallEvent(PlayerControllerB playerController, bool placeObject, Vector3 targetPosition,
+        internal static DroppingItemEventArgs CallEvent(PlayerControllerB playerController, bool placeObject,
+            Vector3 targetPosition,
             int floorYRotation, NetworkObject parentObjectTo, bool matchRotationOfParent, bool droppedInShip)
         {
             if (Plugin.configVanillaSupport.Value) return null;
@@ -20,26 +23,29 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
 
             Features.Item item = Features.Item.GetOrAdd(playerController.currentlyHeldObjectServer);
 
-            DroppingItemEventArgs ev = new DroppingItemEventArgs(player, item, placeObject, targetPosition, floorYRotation, parentObjectTo, matchRotationOfParent, droppedInShip);
+            DroppingItemEventArgs ev = new DroppingItemEventArgs(player, item, placeObject, targetPosition,
+                floorYRotation, parentObjectTo, matchRotationOfParent, droppedInShip);
 
             Handlers.Player.OnDroppingItem(ev);
 
-            player.CallDroppingItemOnOtherClients(item, placeObject, targetPosition, floorYRotation, parentObjectTo, matchRotationOfParent, droppedInShip);
+            player.CallDroppingItemOnOtherClients(item, placeObject, targetPosition, floorYRotation, parentObjectTo,
+                matchRotationOfParent, droppedInShip);
 
             return ev;
         }
 
-        private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
+        private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions,
+            ILGenerator generator)
         {
             List<CodeInstruction> newInstructions = new List<CodeInstruction>(instructions);
 
             // original function was changed to have "!base.IsOwner" stuff with return, so that should be first, otherwise the function will call itself => infinite recursive.
-            int firstRetun = newInstructions.FindIndex(i => i.opcode == OpCodes.Ret) + 1;
-            int animIndex = newInstructions.FindIndex(i => i.opcode == OpCodes.Ldarg_1) - firstRetun;
-
-            CodeInstruction[] animatorStuff = newInstructions.GetRange(firstRetun, animIndex).ToArray();
-
-            newInstructions.RemoveRange(firstRetun, animIndex);
+            // int firstRetun = newInstructions.FindIndex(i => i.opcode == OpCodes.Ret) + 1;
+            // int animIndex = newInstructions.FindIndex(i => i.opcode == OpCodes.Ldarg_1) - firstRetun;
+            //
+            // CodeInstruction[] animatorStuff = newInstructions.GetRange(firstRetun, animIndex).ToArray();
+            //
+            // newInstructions.RemoveRange(firstRetun, animIndex);
 
             LocalBuilder isInShipLocal = generator.DeclareLocal(typeof(bool));
 
@@ -47,6 +53,7 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
             // Dr Feederino: V60 has another update of DiscardHeldObject
             // Dr Feederino: V64 yet another update in locals of DiscardHeldObject
             // Dr Feederino: V69 HotFix for Cargo cruiser. Commented the whole bytecode shenanigans because it collides with Cargo Cruiser's collision box for dropping off items.
+            // Dr Feederino: V73 Fixed DropItem for Cargo Cruiser and Elevator. How: removed the animator manipulations.
             {
                 const int offset = 1;
 
@@ -67,8 +74,11 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
                     new CodeInstruction(OpCodes.Ldarg_2), // int
                     new CodeInstruction(OpCodes.Ldarg, 4), // networkobject
                     new CodeInstruction(OpCodes.Ldarg_0), // bool
-                    new CodeInstruction(OpCodes.Ldfld, AccessTools.Field(typeof(PlayerControllerB), nameof(PlayerControllerB.isInHangarShipRoom))), // bool
-                    new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(DroppingItem), nameof(DroppingItem.CallEvent))),
+                    new CodeInstruction(OpCodes.Ldfld,
+                        AccessTools.Field(typeof(PlayerControllerB),
+                            nameof(PlayerControllerB.isInHangarShipRoom))), // bool
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.Method(typeof(DroppingItem), nameof(DroppingItem.CallEvent))),
 
                     // if (ev is null) -> base game code
                     new CodeInstruction(OpCodes.Dup),
@@ -77,7 +87,9 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
                     new CodeInstruction(OpCodes.Dup),
 
                     // if (!ev.IsAllowed) return
-                    new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.IsAllowed))),
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.PropertyGetter(typeof(DroppingItemEventArgs),
+                            nameof(DroppingItemEventArgs.IsAllowed))),
                     new CodeInstruction(OpCodes.Brfalse_S, notAllowedLabel),
 
                     new CodeInstruction(OpCodes.Dup),
@@ -86,38 +98,49 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
                     new CodeInstruction(OpCodes.Dup),
 
                     // placePosition = ev.TargetPosition
-                    new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.TargetPosition))),
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.PropertyGetter(typeof(DroppingItemEventArgs),
+                            nameof(DroppingItemEventArgs.TargetPosition))),
                     new CodeInstruction(OpCodes.Starg, 3),
 
                     // floorYRot2 = ev.FloorYRotation
-                    new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.FloorYRotation))),
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.PropertyGetter(typeof(DroppingItemEventArgs),
+                            nameof(DroppingItemEventArgs.FloorYRotation))),
                     new CodeInstruction(OpCodes.Stloc, 2),
 
                     // parentObjectTo = ev.ParentObjectTo
-                    new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.ParentObjectTo))),
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.PropertyGetter(typeof(DroppingItemEventArgs),
+                            nameof(DroppingItemEventArgs.ParentObjectTo))),
                     new CodeInstruction(OpCodes.Starg, 2),
 
                     // matchRotationOfParent = ev.MatchRotationOfParent
-                    new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.MatchRotationOfParent))),
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.PropertyGetter(typeof(DroppingItemEventArgs),
+                            nameof(DroppingItemEventArgs.MatchRotationOfParent))),
                     new CodeInstruction(OpCodes.Starg, 4),
 
                     // droppedInShip = ev.DroppedInShip
-                    new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.DroppedInShip))),
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.PropertyGetter(typeof(DroppingItemEventArgs),
+                            nameof(DroppingItemEventArgs.DroppedInShip))),
                     new CodeInstruction(OpCodes.Stloc, isInShipLocal.LocalIndex),
                 };
 
-                inst = inst.AddRangeToArray(animatorStuff);
+                //inst = inst.AddRangeToArray(animatorStuff);
 
                 inst = inst.AddRangeToArray(new CodeInstruction[]
                 {
                     new CodeInstruction(OpCodes.Br, skipLabel),
                     new CodeInstruction(OpCodes.Pop).WithLabels(nullLabel),
                     new CodeInstruction(OpCodes.Ldarg_0),
-                    new CodeInstruction(OpCodes.Ldfld, AccessTools.Field(typeof(PlayerControllerB), nameof(PlayerControllerB.isInHangarShipRoom))),
+                    new CodeInstruction(OpCodes.Ldfld,
+                        AccessTools.Field(typeof(PlayerControllerB), nameof(PlayerControllerB.isInHangarShipRoom))),
                     new CodeInstruction(OpCodes.Stloc, isInShipLocal.LocalIndex),
                 });
 
-                inst = inst.AddRangeToArray(animatorStuff);
+                //inst = inst.AddRangeToArray(animatorStuff);
 
                 inst = inst.AddRangeToArray(new CodeInstruction[]
                 {
@@ -125,7 +148,8 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
                     new CodeInstruction(OpCodes.Pop).WithLabels(notAllowedLabel),
                     new CodeInstruction(OpCodes.Ldarg_0),
                     new CodeInstruction(OpCodes.Ldc_I4_0),
-                    new CodeInstruction(OpCodes.Stfld, AccessTools.Field(typeof(PlayerControllerB), nameof(PlayerControllerB.throwingObject))),
+                    new CodeInstruction(OpCodes.Stfld,
+                        AccessTools.Field(typeof(PlayerControllerB), nameof(PlayerControllerB.throwingObject))),
                     new CodeInstruction(OpCodes.Ret)
                 });
 
@@ -135,7 +159,9 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
 
                 // Dr Feederino: find the index of the first call of SetObjectAsNoLongerHeld() where the arguements would be declared and passed.
                 // The body of original method can vary and change, so this is very probable to break from update to update.
-                int firstMethodCallIndex = newInstructions.FindIndex(i => i.Calls(AccessTools.Method(typeof(PlayerControllerB), nameof(PlayerControllerB.SetObjectAsNoLongerHeld))));
+                int firstMethodCallIndex = newInstructions.FindIndex(i =>
+                    i.Calls(AccessTools.Method(typeof(PlayerControllerB),
+                        nameof(PlayerControllerB.SetObjectAsNoLongerHeld))));
 
                 // Dr Feederino notes:
                 // Idea is to remove the following stuff before SetObjectAsNoLongerHeld().
@@ -173,14 +199,16 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
                 {
                     // DroppingItemEventArgs ev = DroppingItem.CallEvent(PlayerControllerB, bool, Vector3, 
                     //  int, NetworkObject, bool, bool)
-                    new CodeInstruction(OpCodes.Ldarg_0).MoveLabelsFrom(newInstructions[index]),  // playerController (this)
-                    new CodeInstruction(OpCodes.Ldarg_1),  // placeObject 
-                    new CodeInstruction(OpCodes.Ldloc_S, 3),  // placePosition (targetPosition V_5)
-                    new CodeInstruction(OpCodes.Ldloc_S, 2),  // floorYRotation (V_4)
+                    new CodeInstruction(OpCodes.Ldarg_0)
+                        .MoveLabelsFrom(newInstructions[index]), // playerController (this)
+                    new CodeInstruction(OpCodes.Ldarg_1), // placeObject 
+                    new CodeInstruction(OpCodes.Ldloc_S, 3), // placePosition (targetPosition V_5)
+                    new CodeInstruction(OpCodes.Ldloc_S, 2), // floorYRotation (V_4)
                     new CodeInstruction(OpCodes.Ldarg_2), // parentObjectTo
                     new CodeInstruction(OpCodes.Ldarg, 4), // matchRotationOfParent 
-                    new CodeInstruction(OpCodes.Ldloc_S, 4),// droppedInShip (V_6)
-                    new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(DroppingItem), nameof(DroppingItem.CallEvent))),
+                    new CodeInstruction(OpCodes.Ldloc_S, 4), // droppedInShip (V_6)
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.Method(typeof(DroppingItem), nameof(DroppingItem.CallEvent))),
 
                     // if (ev is null) -> base game code
                     new CodeInstruction(OpCodes.Dup),
@@ -189,7 +217,9 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
                     new CodeInstruction(OpCodes.Dup),
 
                     // if (!ev.IsAllowed) return
-                    new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.IsAllowed))),
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.PropertyGetter(typeof(DroppingItemEventArgs),
+                            nameof(DroppingItemEventArgs.IsAllowed))),
                     new CodeInstruction(OpCodes.Brfalse_S, notAllowedLabel),
 
                     new CodeInstruction(OpCodes.Dup),
@@ -198,27 +228,37 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
                     new CodeInstruction(OpCodes.Dup),
 
                     // targetFloorPosition = ev.TargetPosition
-                    new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.TargetPosition))),
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.PropertyGetter(typeof(DroppingItemEventArgs),
+                            nameof(DroppingItemEventArgs.TargetPosition))),
                     new CodeInstruction(OpCodes.Stloc_S, 3),
 
                     // floorYRot = ev.FloorYRotation
-                    new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.FloorYRotation))),
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.PropertyGetter(typeof(DroppingItemEventArgs),
+                            nameof(DroppingItemEventArgs.FloorYRotation))),
                     new CodeInstruction(OpCodes.Stloc_S, 2),
 
                     // parentObjectTo = ev.ParentObjectTo
-                    new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.ParentObjectTo))),
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.PropertyGetter(typeof(DroppingItemEventArgs),
+                            nameof(DroppingItemEventArgs.ParentObjectTo))),
                     new CodeInstruction(OpCodes.Starg, 2),
 
                     // matchRotationOfParent = ev.MatchRotationOfParent
-                    new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.MatchRotationOfParent))),
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.PropertyGetter(typeof(DroppingItemEventArgs),
+                            nameof(DroppingItemEventArgs.MatchRotationOfParent))),
                     new CodeInstruction(OpCodes.Starg, 4),
 
                     // droppedInShip = ev.DroppedInShip
-                    new CodeInstruction(OpCodes.Call, AccessTools.PropertyGetter(typeof(DroppingItemEventArgs), nameof(DroppingItemEventArgs.DroppedInShip))),
+                    new CodeInstruction(OpCodes.Call,
+                        AccessTools.PropertyGetter(typeof(DroppingItemEventArgs),
+                            nameof(DroppingItemEventArgs.DroppedInShip))),
                     new CodeInstruction(OpCodes.Stloc, isInShipLocal.LocalIndex),
                 };
 
-                inst = inst.AddRangeToArray(animatorStuff);
+                //inst = inst.AddRangeToArray(animatorStuff);
 
                 inst = inst.AddRangeToArray(new CodeInstruction[]
                 {
@@ -228,7 +268,7 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
                     new CodeInstruction(OpCodes.Stloc, isInShipLocal.LocalIndex),
                 });
 
-                inst = inst.AddRangeToArray(animatorStuff);
+                //inst = inst.AddRangeToArray(animatorStuff);
 
                 inst = inst.AddRangeToArray(new CodeInstruction[]
                 {
@@ -236,7 +276,8 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
                     new CodeInstruction(OpCodes.Pop).WithLabels(notAllowedLabel),
                     new CodeInstruction(OpCodes.Ldarg_0),
                     new CodeInstruction(OpCodes.Ldc_I4_0),
-                    new CodeInstruction(OpCodes.Stfld, AccessTools.Field(typeof(PlayerControllerB), nameof(PlayerControllerB.throwingObject))),
+                    new CodeInstruction(OpCodes.Stfld,
+                        AccessTools.Field(typeof(PlayerControllerB), nameof(PlayerControllerB.throwingObject))),
                     new CodeInstruction(OpCodes.Ret)
                 });
 
@@ -254,7 +295,8 @@ namespace LC_API.GameInterfaceAPI.Events.Patches.Player
                 });
             }
 
-            for (int i = 0; i < newInstructions.Count; i++) yield return newInstructions[i];
+            foreach (var newInstruction in newInstructions)
+                yield return newInstruction;
         }
     }
 }
