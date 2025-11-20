@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 N/A
 
+## Version [3.4.14]
+- Hotfix for incorrect netcode-patching which results in unhandled RPC methods.
+
 ## Version [3.4.13]
 - Compiled for v73;
 - Fix for DropItem hook that made things go through certain in-game collisions (e.g. dropping items in Cargo Cruiser).

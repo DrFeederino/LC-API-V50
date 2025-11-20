@@ -1,7 +1,7 @@
 {
   "name": "LC_API_V50",
   "description": "Multipurpose modding API for Lethal Company V73",
-  "version_number": "3.4.13",
+  "version_number": "3.4.14",
   "dependencies": [
     "BepInEx-BepInExPack-5.4.2304"
   ],
